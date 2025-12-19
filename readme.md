@@ -2,172 +2,145 @@
 
 Интеграция платёжной системы Robokassa для приёма онлайн-платежей.
 
-## Описание
+## Что включено
 
-Расширение добавляет возможность принимать оплату через Robokassa:
-- Создание платёжных ссылок
-- Обработка webhook'ов от Robokassa
-- Проверка статуса оплаты
-- React компоненты для интеграции в UI
+- `backend/robokassa/` — создание заказа и ссылки на оплату
+- `backend/robokassa-webhook/` — обработка webhook от Robokassa
+- `frontend/useRobokassa.ts` — React хук для работы с API
+- `frontend/PaymentButton.tsx` — готовый компонент кнопки оплаты
 
-## Зависимости
+## Установка
 
-### Python
-```
-# Уже есть в проекте
-fastapi
-pydantic
-sqlalchemy
-```
+### 1. База данных
 
-### React
-```
-# Нет дополнительных зависимостей
-# Использует стандартный fetch API
-```
+Выполни миграцию для создания таблиц заказов:
 
-## Backend
+```sql
+CREATE TABLE IF NOT EXISTS orders (
+    id SERIAL PRIMARY KEY,
+    order_number VARCHAR(50) UNIQUE NOT NULL,
+    user_name VARCHAR(255) NOT NULL,
+    user_email VARCHAR(255) NOT NULL,
+    user_phone VARCHAR(50),
+    amount DECIMAL(10, 2) NOT NULL,
+    robokassa_inv_id INTEGER UNIQUE,
+    status VARCHAR(20) DEFAULT 'pending',
+    payment_url TEXT,
+    delivery_address TEXT,
+    order_comment TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    paid_at TIMESTAMP
+);
 
-### Эндпоинты
+CREATE TABLE IF NOT EXISTS order_items (
+    id SERIAL PRIMARY KEY,
+    order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+    product_id VARCHAR(100),
+    product_name VARCHAR(255) NOT NULL,
+    product_price DECIMAL(10, 2) NOT NULL,
+    quantity INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
-| Метод | Путь | Описание |
-|-------|------|----------|
-| POST | `/api/robokassa/create-payment` | Создание платежа |
-| POST | `/api/robokassa/webhook` | Webhook от Robokassa |
-| GET | `/api/robokassa/check-status/{order_number}` | Проверка статуса |
-
-### Файлы
-
-- `backend/router.py` — FastAPI роутер с эндпоинтами
-- `backend/models.py` — SQLAlchemy модели Order и OrderItem
-- `backend/migration.sql` — SQL миграция для создания таблиц
-
-## Frontend
-
-### Компоненты
-
-- `useRobokassa.ts` — React хук для работы с API
-- `PaymentButton.tsx` — Готовая кнопка оплаты
-
-### Утилиты
-
-- `formatPhoneNumber()` — Форматирование телефона
-- `isValidEmail()` — Валидация email
-- `isValidPhone()` — Валидация телефона
-- `openPaymentPage()` — Открытие страницы оплаты
-
-## Интеграция
-
-### 1. Backend
-
-1. Скопировать `backend/models.py` в `app/db/models.py`:
-   - Раскомментировать наследование от `BaseModel`
-   - Добавить импорт `OrderStatus`
-
-2. Скопировать `backend/router.py` в `app/src/api/v1/routers/robokassa.py`:
-   - Раскомментировать импорты из проекта
-   - Раскомментировать TODO блоки для работы с БД
-
-3. Подключить роутер в `app/src/api/core/app.py`:
-```python
-from app.src.api.v1.routers import robokassa
-api_router.include_router(robokassa.router)
+CREATE INDEX IF NOT EXISTS idx_orders_robokassa_inv_id ON orders(robokassa_inv_id);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
 ```
 
-4. Создать миграцию Alembic:
-```bash
-alembic revision --autogenerate -m "Add orders tables"
-alembic upgrade head
-```
+### 2. Секреты
 
-Или выполнить `backend/migration.sql` напрямую.
+Добавь секреты в проект:
 
-### 2. Frontend
+| Переменная | Описание |
+|------------|----------|
+| `ROBOKASSA_MERCHANT_LOGIN` | Логин магазина в Robokassa |
+| `ROBOKASSA_PASSWORD_1` | Пароль #1 для создания платежей |
+| `ROBOKASSA_PASSWORD_2` | Пароль #2 для проверки webhook |
 
-1. Скопировать `frontend/useRobokassa.ts` в `app/hooks/`
+### 3. Backend
 
-2. Скопировать `frontend/PaymentButton.tsx` в `app/components/`
+Скопируй папки `backend/robokassa/` и `backend/robokassa-webhook/` в свой проект и выполни sync_backend.
 
-3. Использовать в компонентах:
+### 4. Frontend
+
+Скопируй файлы из `frontend/` в свой проект и используй:
+
 ```tsx
 import { PaymentButton } from "@/components/PaymentButton";
 
 <PaymentButton
-  apiUrl={process.env.NEXT_PUBLIC_API_URL}
+  apiUrl={func2url.robokassa}
   amount={total}
   userName={formData.name}
   userEmail={formData.email}
   userPhone={formData.phone}
+  userAddress={formData.address}
   cartItems={cart}
-  onSuccess={(orderNumber) => router.push(`/order-success?order=${orderNumber}`)}
+  onSuccess={(orderNumber) => router.push(`/success?order=${orderNumber}`)}
 />
 ```
 
-### 3. Настройка Robokassa
+### 5. Настройка Robokassa
 
-1. Зарегистрироваться на [robokassa.ru](https://robokassa.ru)
+В личном кабинете Robokassa укажи:
 
-2. Создать магазин в личном кабинете
-
-3. В настройках магазина указать:
-   - **Result URL**: `https://your-api.com/api/robokassa/webhook`
-   - **Success URL**: `https://your-site.com/order-success`
-   - **Fail URL**: `https://your-site.com/order-failed`
-
-4. Скопировать учётные данные:
-   - MerchantLogin
-   - Пароль #1 (для создания платежей)
-   - Пароль #2 (для проверки webhook)
-
-## Конфигурация
-
-| Переменная | Описание | Обязательно |
-|------------|----------|-------------|
-| `ROBOKASSA_MERCHANT_LOGIN` | Логин магазина в Robokassa | Да |
-| `ROBOKASSA_PASSWORD_1` | Пароль #1 для подписи платежей | Да |
-| `ROBOKASSA_PASSWORD_2` | Пароль #2 для проверки webhook | Да |
-| `ROBOKASSA_TEST_MODE` | Тестовый режим (0/1) | Нет |
+- **Result URL**: `{func2url.robokassa-webhook}`
+- **Success URL**: `https://your-site.com/order-success`
+- **Fail URL**: `https://your-site.com/order-failed`
 
 ## Поток оплаты
 
 ```
-1. Пользователь заполняет форму заказа
+1. Пользователь нажимает "Оплатить"
    ↓
-2. Frontend вызывает POST /create-payment
+2. Frontend → POST /robokassa (amount, user_name, cart_items...)
    ↓
-3. Backend создаёт заказ в БД
+3. Backend создаёт заказ в БД, генерирует payment_url
    ↓
-4. Backend генерирует подпись и payment_url
+4. Frontend редиректит на Robokassa
    ↓
-5. Frontend редиректит на Robokassa
+5. Пользователь оплачивает
    ↓
-6. Пользователь оплачивает
+6. Robokassa → POST /robokassa-webhook (OutSum, InvId, SignatureValue)
    ↓
-7. Robokassa вызывает webhook
+7. Backend проверяет подпись, обновляет status = 'paid'
    ↓
-8. Backend обновляет статус заказа на "paid"
-   ↓
-9. Frontend polling'ом проверяет статус
-   ↓
-10. Редирект на страницу успеха
+8. Robokassa редиректит на Success URL
 ```
 
-## Тестирование
+## API
 
-Для тестовых платежей передайте `isTest: true`:
+### POST /robokassa
 
-```tsx
-<PaymentButton
-  isTest={process.env.NODE_ENV === "development"}
-  ...
-/>
+Создание заказа и получение ссылки на оплату.
+
+**Request:**
+```json
+{
+  "amount": 1500.00,
+  "user_name": "Иван Иванов",
+  "user_email": "ivan@example.com",
+  "user_phone": "+79991234567",
+  "user_address": "Москва, ул. Примерная, 1",
+  "cart_items": [
+    {"id": "1", "name": "Товар", "price": 1500, "quantity": 1}
+  ],
+  "is_test": 1
+}
 ```
 
-Или установите `ROBOKASSA_TEST_MODE=1` на бекенде.
+**Response:**
+```json
+{
+  "payment_url": "https://auth.robokassa.ru/...",
+  "order_id": 123,
+  "order_number": "ORD-20241219-456789"
+}
+```
 
-## Безопасность
+### POST /robokassa-webhook
 
-- Пароли хранятся только в env переменных
-- Все платежи подписываются MD5
-- Webhook верифицирует подпись от Robokassa
-- Идемпотентность: повторные webhook'и не ломают систему
+Webhook от Robokassa (вызывается автоматически после оплаты).
+
+**Response:** `OK{InvId}` при успехе
