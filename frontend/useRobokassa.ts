@@ -1,0 +1,213 @@
+/**
+ * Robokassa Payment Hook
+ *
+ * Хук для интеграции с Robokassa в React приложении.
+ */
+import { useState, useCallback } from "react";
+
+// ============================================================================
+// ТИПЫ
+// ============================================================================
+
+export interface CartItem {
+  id: number;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+export interface PaymentPayload {
+  amount: number;
+  userName: string;
+  userEmail: string;
+  userPhone: string;
+  userAddress?: string;
+  orderComment?: string;
+  cartItems: CartItem[];
+  isTest?: boolean;
+}
+
+export interface PaymentResponse {
+  payment_url: string;
+  order_id: number;
+  order_number: string;
+  robokassa_inv_id: number;
+  amount: string;
+}
+
+export interface OrderStatus {
+  order_number: string;
+  status: "pending" | "paid" | "cancelled" | "refunded";
+  amount: number;
+  paid_at: string | null;
+}
+
+interface UseRobokassaOptions {
+  apiUrl: string;
+  onSuccess?: (orderNumber: string) => void;
+  onError?: (error: Error) => void;
+  pollInterval?: number;
+}
+
+interface UseRobokassaReturn {
+  createPayment: (payload: PaymentPayload) => Promise<PaymentResponse>;
+  checkStatus: (orderNumber: string) => Promise<OrderStatus>;
+  isLoading: boolean;
+  error: Error | null;
+  paymentUrl: string | null;
+  orderNumber: string | null;
+}
+
+// ============================================================================
+// ХУК
+// ============================================================================
+
+export function useRobokassa(options: UseRobokassaOptions): UseRobokassaReturn {
+  const { apiUrl, onSuccess, onError, pollInterval = 5000 } = options;
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [orderNumber, setOrderNumber] = useState<string | null>(null);
+
+  /**
+   * Создаёт платёж и возвращает ссылку на оплату
+   */
+  const createPayment = useCallback(
+    async (payload: PaymentPayload): Promise<PaymentResponse> => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch(`${apiUrl}/robokassa/create-payment`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            amount: payload.amount,
+            user_name: payload.userName,
+            user_email: payload.userEmail,
+            user_phone: payload.userPhone,
+            user_address: payload.userAddress,
+            order_comment: payload.orderComment,
+            cart_items: payload.cartItems,
+            is_test: payload.isTest ?? false,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.detail || "Payment creation failed");
+        }
+
+        const data: PaymentResponse = await response.json();
+
+        setPaymentUrl(data.payment_url);
+        setOrderNumber(data.order_number);
+
+        // Сохраняем pending order в localStorage
+        localStorage.setItem("pending_order", data.order_number);
+
+        return data;
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error("Unknown error");
+        setError(error);
+        onError?.(error);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [apiUrl, onError]
+  );
+
+  /**
+   * Проверяет статус оплаты
+   */
+  const checkStatus = useCallback(
+    async (orderNum: string): Promise<OrderStatus> => {
+      const response = await fetch(
+        `${apiUrl}/robokassa/check-status/${orderNum}`,
+        {
+          method: "GET",
+          credentials: "include",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to check payment status");
+      }
+
+      const data: OrderStatus = await response.json();
+
+      if (data.status === "paid") {
+        localStorage.removeItem("pending_order");
+        onSuccess?.(orderNum);
+      }
+
+      return data;
+    },
+    [apiUrl, onSuccess]
+  );
+
+  return {
+    createPayment,
+    checkStatus,
+    isLoading,
+    error,
+    paymentUrl,
+    orderNumber,
+  };
+}
+
+// ============================================================================
+// УТИЛИТЫ
+// ============================================================================
+
+/**
+ * Открывает страницу оплаты
+ * На мобильных устройствах открывает в новом окне
+ */
+export function openPaymentPage(paymentUrl: string): void {
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+  if (isMobile) {
+    window.open(paymentUrl, "_blank");
+  } else {
+    window.location.href = paymentUrl;
+  }
+}
+
+/**
+ * Форматирует телефон в формат +7 (XXX) XXX-XX-XX
+ */
+export function formatPhoneNumber(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+
+  if (digits.length === 0) return "";
+  if (digits.length <= 1) return `+${digits}`;
+  if (digits.length <= 4) return `+${digits.slice(0, 1)} (${digits.slice(1)}`;
+  if (digits.length <= 7)
+    return `+${digits.slice(0, 1)} (${digits.slice(1, 4)}) ${digits.slice(4)}`;
+  if (digits.length <= 9)
+    return `+${digits.slice(0, 1)} (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+
+  return `+${digits.slice(0, 1)} (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7, 9)}-${digits.slice(9, 11)}`;
+}
+
+/**
+ * Валидирует email
+ */
+export function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+/**
+ * Валидирует телефон (11 цифр)
+ */
+export function isValidPhone(phone: string): boolean {
+  const digits = phone.replace(/\D/g, "");
+  return digits.length === 11;
+}
