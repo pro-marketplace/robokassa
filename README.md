@@ -83,13 +83,20 @@ import { PaymentButton } from "@/components/PaymentButton";
 />
 ```
 
-### 5. Настройка Robokassa
+### 5. URL редиректа
+
+Укажи URL страниц, на которые Robokassa редиректит пользователя:
+
+- **successUrl** (обязательно) — страница после успешной оплаты, например `/success` или `/order-complete`
+- **failUrl** (опционально) — страница при отмене оплаты, например `/checkout`
+
+Эти URL передаются в `PaymentButton` и Robokassa автоматически редиректит на них.
+
+### 6. Настройка Robokassa
 
 В личном кабинете Robokassa укажи:
 
-- **Result URL**: `{func2url.robokassa-webhook}`
-- **Success URL**: `https://your-site.com/order-success`
-- **Fail URL**: `https://your-site.com/order-failed`
+- **Result URL**: `{func2url.robokassa-webhook}` — обязательно, для получения уведомлений об оплате
 
 ## Поток оплаты
 
