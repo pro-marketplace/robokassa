@@ -77,6 +77,8 @@ import { PaymentButton } from "@/components/PaymentButton";
   userPhone={formData.phone}
   userAddress={formData.address}
   cartItems={cart}
+  successUrl="https://your-site.com/success"
+  failUrl="https://your-site.com/failed"
   onSuccess={(orderNumber) => router.push(`/success?order=${orderNumber}`)}
 />
 ```
@@ -169,6 +171,8 @@ Webhook от Robokassa (вызывается автоматически посл
      userPhone={formData.phone}
      userAddress={formData.address}
      cartItems={cartItems}
+     successUrl="https://your-site.com/success"
+     failUrl="https://your-site.com/failed"
      onSuccess={(orderNumber) => router.push(`/success?order=${orderNumber}`)}
      onError={(error) => toast.error(error.message)}
    />

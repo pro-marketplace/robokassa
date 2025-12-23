@@ -28,6 +28,10 @@ interface PaymentButtonProps {
   orderComment?: string;
   /** Товары в корзине */
   cartItems: CartItem[];
+  /** URL редиректа после успешной оплаты */
+  successUrl?: string;
+  /** URL редиректа при отмене оплаты */
+  failUrl?: string;
   /** Callback при успешной оплате */
   onSuccess?: (orderNumber: string) => void;
   /** Callback при ошибке */
@@ -53,6 +57,8 @@ export function PaymentButton({
   userAddress,
   orderComment,
   cartItems,
+  successUrl,
+  failUrl,
   onSuccess,
   onError,
   buttonText = "Оплатить",
@@ -81,6 +87,8 @@ export function PaymentButton({
         userAddress,
         orderComment,
         cartItems,
+        successUrl,
+        failUrl,
       };
 
       const result = await createPayment(payload);
@@ -122,8 +130,8 @@ import { PaymentButton } from "./PaymentButton";
 
 function CheckoutPage() {
   const cartItems = [
-    { id: 1, name: "Товар 1", price: 1000, quantity: 2 },
-    { id: 2, name: "Товар 2", price: 500, quantity: 1 },
+    { id: "1", name: "Товар 1", price: 1000, quantity: 2 },
+    { id: "2", name: "Товар 2", price: 500, quantity: 1 },
   ];
 
   const total = cartItems.reduce(
@@ -133,20 +141,20 @@ function CheckoutPage() {
 
   return (
     <PaymentButton
-      apiUrl="https://api.example.com"
+      apiUrl={func2url.robokassa}
       amount={total}
       userName="Иван Иванов"
       userEmail="ivan@example.com"
       userPhone="+79991234567"
       userAddress="Москва, ул. Примерная, д. 1"
       cartItems={cartItems}
+      successUrl="https://your-site.com/success"
+      failUrl="https://your-site.com/failed"
       onSuccess={(orderNumber) => {
         console.log("Оплачен заказ:", orderNumber);
-        // Редирект на страницу успеха
       }}
       onError={(error) => {
         console.error("Ошибка оплаты:", error);
-        // Показать уведомление
       }}
       buttonText="Оплатить заказ"
       className="btn btn-primary"
