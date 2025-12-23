@@ -24,7 +24,6 @@ export interface PaymentPayload {
   userAddress?: string;
   orderComment?: string;
   cartItems: CartItem[];
-  isTest?: boolean;
 }
 
 export interface PaymentResponse {
@@ -93,7 +92,6 @@ export function useRobokassa(options: UseRobokassaOptions): UseRobokassaReturn {
             user_address: payload.userAddress,
             order_comment: payload.orderComment,
             cart_items: payload.cartItems,
-            is_test: payload.isTest ?? false,
           }),
         });
 

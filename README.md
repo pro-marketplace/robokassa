@@ -125,8 +125,7 @@ import { PaymentButton } from "@/components/PaymentButton";
   "user_address": "Москва, ул. Примерная, 1",
   "cart_items": [
     {"id": "1", "name": "Товар", "price": 1500, "quantity": 1}
-  ],
-  "is_test": 1
+  ]
 }
 ```
 
@@ -144,3 +143,56 @@ import { PaymentButton } from "@/components/PaymentButton";
 Webhook от Robokassa (вызывается автоматически после оплаты).
 
 **Response:** `OK{InvId}` при успехе
+
+---
+
+## После установки
+
+После копирования файлов расширения, выполни интеграцию с фронтендом:
+
+### Сценарий 1: Есть форма оплаты / checkout
+
+Если в проекте уже есть страница оформления заказа или корзина с формой:
+
+1. Найди компонент формы оплаты (обычно `Checkout.tsx`, `Cart.tsx`, `OrderForm.tsx`)
+2. Импортируй `PaymentButton`:
+   ```tsx
+   import { PaymentButton } from "@/components/extensions/robokassa/PaymentButton";
+   ```
+3. Замени кнопку отправки формы на `PaymentButton`:
+   ```tsx
+   <PaymentButton
+     apiUrl={func2url.robokassa}
+     amount={totalAmount}
+     userName={formData.name}
+     userEmail={formData.email}
+     userPhone={formData.phone}
+     userAddress={formData.address}
+     cartItems={cartItems}
+     onSuccess={(orderNumber) => router.push(`/success?order=${orderNumber}`)}
+     onError={(error) => toast.error(error.message)}
+   />
+   ```
+4. Убедись что форма собирает все необходимые данные: имя, email, телефон, адрес
+
+### Сценарий 2: Нет формы оплаты
+
+Если формы оплаты нет, уточни у пользователя:
+
+> Расширение Robokassa установлено! Теперь нужно добавить кнопку оплаты.
+>
+> Подскажи:
+> 1. Где должна быть кнопка оплаты? (страница товара, корзина, отдельная страница)
+> 2. Какие данные нужно собирать? (имя, email, телефон, адрес доставки)
+> 3. Есть ли уже корзина товаров или это разовая оплата фиксированной суммы?
+
+После ответа пользователя создай форму оплаты с `PaymentButton`.
+
+### Проверка интеграции
+
+После интеграции:
+1. Убедись что секреты `ROBOKASSA_MERCHANT_LOGIN`, `ROBOKASSA_PASSWORD_1`, `ROBOKASSA_PASSWORD_2` добавлены
+2. Проверь что Result URL в кабинете Robokassa указывает на `{func2url.robokassa-webhook}`
+3. Сделай тестовый платёж через интерфейс Robokassa (1 рубль)
+
+> **Важно:** Расширение работает в боевом режиме. Для тестирования используй реальные платежи на минимальную сумму (1₽). Тестовый режим Robokassa не используется — он усложняет интеграцию и требует отдельной настройки.

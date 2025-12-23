@@ -35,7 +35,7 @@ ROBOKASSA_URL = 'https://auth.robokassa.ru/Merchant/Index.aspx'
 def handler(event: dict, context) -> dict:
     '''
     Создание заказа и генерация ссылки на оплату Robokassa.
-    POST body: amount, user_name, user_email, user_phone, user_address, cart_items, is_test
+    POST body: amount, user_name, user_email, user_phone, user_address, cart_items
     Returns: payment_url, order_id, order_number
     '''
     method = event.get('httpMethod', 'GET').upper()
@@ -61,7 +61,6 @@ def handler(event: dict, context) -> dict:
     user_phone = str(payload.get('user_phone', ''))
     user_address = str(payload.get('user_address', ''))
     order_comment = str(payload.get('order_comment', ''))
-    is_test = int(payload.get('is_test', 0))
     cart_items = payload.get('cart_items', [])
 
     if amount <= 0:
@@ -105,7 +104,6 @@ def handler(event: dict, context) -> dict:
         'InvoiceID': robokassa_inv_id,
         'SignatureValue': signature,
         'Email': user_email,
-        'IsTest': is_test,
         'Culture': 'ru',
         'Description': f'Заказ {order_number}'
     }

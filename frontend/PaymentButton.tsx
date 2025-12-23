@@ -28,8 +28,6 @@ interface PaymentButtonProps {
   orderComment?: string;
   /** Товары в корзине */
   cartItems: CartItem[];
-  /** Тестовый режим */
-  isTest?: boolean;
   /** Callback при успешной оплате */
   onSuccess?: (orderNumber: string) => void;
   /** Callback при ошибке */
@@ -55,7 +53,6 @@ export function PaymentButton({
   userAddress,
   orderComment,
   cartItems,
-  isTest = false,
   onSuccess,
   onError,
   buttonText = "Оплатить",
@@ -84,7 +81,6 @@ export function PaymentButton({
         userAddress,
         orderComment,
         cartItems,
-        isTest,
       };
 
       const result = await createPayment(payload);
