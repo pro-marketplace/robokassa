@@ -64,39 +64,31 @@ CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
 
 ### 4. Frontend
 
-Скопируй файлы из `frontend/` в свой проект и используй:
+Скопируй файлы из `frontend/` в свой проект и добавь `PaymentButton` в форму оплаты:
 
 ```tsx
 import { PaymentButton } from "@/components/PaymentButton";
 
 <PaymentButton
   apiUrl={func2url.robokassa}
-  amount={total}
+  amount={totalAmount}
   userName={formData.name}
   userEmail={formData.email}
   userPhone={formData.phone}
   userAddress={formData.address}
-  cartItems={cart}
+  cartItems={cartItems}
   successUrl="https://your-site.com/success"
-  failUrl="https://your-site.com/failed"
+  failUrl="https://your-site.com/checkout"
   onSuccess={(orderNumber) => router.push(`/success?order=${orderNumber}`)}
+  onError={(error) => toast.error(error.message)}
 />
 ```
 
-### 5. URL редиректа
-
-Укажи URL страниц, на которые Robokassa редиректит пользователя:
-
-- **successUrl** (обязательно) — страница после успешной оплаты, например `/success` или `/order-complete`
-- **failUrl** (опционально) — страница при отмене оплаты, например `/checkout`
-
-Эти URL передаются в `PaymentButton` и Robokassa автоматически редиректит на них.
-
-### 6. Настройка Robokassa
+### 5. Настройка Robokassa
 
 В личном кабинете Robokassa укажи:
 
-- **Result URL**: `{func2url.robokassa-webhook}` — обязательно, для получения уведомлений об оплате
+- **Result URL**: URL функции `robokassa-webhook` из func2url.json
 
 ## Поток оплаты
 
@@ -153,57 +145,25 @@ Webhook от Robokassa (вызывается автоматически посл
 
 **Response:** `OK{InvId}` при успехе
 
----
+## Частые проблемы
 
-## После установки
+### Failed to fetch
+**Причина:** Отсутствует поле `isBase64Encoded` в ответе backend функции.
+**Решение:** Убедись что все return содержат `'isBase64Encoded': False`
 
-После копирования файлов расширения, выполни интеграцию с фронтендом:
+### CORS errors
+**Причина:** `credentials: "include"` в fetch запросе.
+**Решение:** Удали эту опцию из useRobokassa.ts
 
-### Сценарий 1: Есть форма оплаты / checkout
+### Database errors
+**Причина:** Таблицы orders/order_items не созданы.
+**Решение:** Примени миграцию из раздела "База данных"
 
-Если в проекте уже есть страница оформления заказа или корзина с формой:
+## Чеклист
 
-1. Найди компонент формы оплаты (обычно `Checkout.tsx`, `Cart.tsx`, `OrderForm.tsx`)
-2. Импортируй `PaymentButton`:
-   ```tsx
-   import { PaymentButton } from "@/components/extensions/robokassa/PaymentButton";
-   ```
-3. Замени кнопку отправки формы на `PaymentButton`:
-   ```tsx
-   <PaymentButton
-     apiUrl={func2url.robokassa}
-     amount={totalAmount}
-     userName={formData.name}
-     userEmail={formData.email}
-     userPhone={formData.phone}
-     userAddress={formData.address}
-     cartItems={cartItems}
-     successUrl="https://your-site.com/success"
-     failUrl="https://your-site.com/failed"
-     onSuccess={(orderNumber) => router.push(`/success?order=${orderNumber}`)}
-     onError={(error) => toast.error(error.message)}
-   />
-   ```
-4. Убедись что форма собирает все необходимые данные: имя, email, телефон, адрес
-
-### Сценарий 2: Нет формы оплаты
-
-Если формы оплаты нет, уточни у пользователя:
-
-> Расширение Robokassa установлено! Теперь нужно добавить кнопку оплаты.
->
-> Подскажи:
-> 1. Где должна быть кнопка оплаты? (страница товара, корзина, отдельная страница)
-> 2. Какие данные нужно собирать? (имя, email, телефон, адрес доставки)
-> 3. Есть ли уже корзина товаров или это разовая оплата фиксированной суммы?
-
-После ответа пользователя создай форму оплаты с `PaymentButton`.
-
-### Проверка интеграции
-
-После интеграции:
-1. Убедись что секреты `ROBOKASSA_MERCHANT_LOGIN`, `ROBOKASSA_PASSWORD_1`, `ROBOKASSA_PASSWORD_2` добавлены
-2. Проверь что Result URL в кабинете Robokassa указывает на `{func2url.robokassa-webhook}`
-3. Сделай тестовый платёж через интерфейс Robokassa (1 рубль)
-
-> **Важно:** Расширение работает в боевом режиме. Для тестирования используй реальные платежи на минимальную сумму (1₽). Тестовый режим Robokassa не используется — он усложняет интеграцию и требует отдельной настройки.
+- [ ] Миграция БД применена
+- [ ] Секреты добавлены
+- [ ] Backend функции задеплоены (sync_backend)
+- [ ] PaymentButton добавлен в форму оплаты
+- [ ] Result URL настроен в кабинете Robokassa
+- [ ] Тестовый платёж проходит успешно

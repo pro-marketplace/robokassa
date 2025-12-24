@@ -36,11 +36,11 @@ def handler(event: dict, context) -> dict:
     method = event.get('httpMethod', 'GET').upper()
 
     if method == 'OPTIONS':
-        return {'statusCode': 200, 'headers': HEADERS, 'body': ''}
+        return {'statusCode': 200, 'headers': HEADERS, 'body': '', 'isBase64Encoded': False}
 
     password_2 = os.environ.get('ROBOKASSA_PASSWORD_2')
     if not password_2:
-        return {'statusCode': 500, 'headers': HEADERS, 'body': 'Configuration error'}
+        return {'statusCode': 500, 'headers': HEADERS, 'body': 'Configuration error', 'isBase64Encoded': False}
 
     # Парсинг параметров из body или query string
     params = {}
@@ -61,12 +61,12 @@ def handler(event: dict, context) -> dict:
     signature_value = params.get('SignatureValue', params.get('crc', '')).upper()
 
     if not out_sum or not inv_id or not signature_value:
-        return {'statusCode': 400, 'headers': HEADERS, 'body': 'Missing required parameters'}
+        return {'statusCode': 400, 'headers': HEADERS, 'body': 'Missing required parameters', 'isBase64Encoded': False}
 
     # Проверка подписи
     expected_signature = calculate_signature(out_sum, inv_id, password_2)
     if signature_value != expected_signature:
-        return {'statusCode': 400, 'headers': HEADERS, 'body': 'Invalid signature'}
+        return {'statusCode': 400, 'headers': HEADERS, 'body': 'Invalid signature', 'isBase64Encoded': False}
 
     # Обновление статуса заказа
     conn = get_db_connection()
@@ -88,8 +88,8 @@ def handler(event: dict, context) -> dict:
         conn.close()
 
         if existing and existing[0] == 'paid':
-            return {'statusCode': 200, 'headers': HEADERS, 'body': f'OK{inv_id}'}
-        return {'statusCode': 404, 'headers': HEADERS, 'body': 'Order not found'}
+            return {'statusCode': 200, 'headers': HEADERS, 'body': f'OK{inv_id}', 'isBase64Encoded': False}
+        return {'statusCode': 404, 'headers': HEADERS, 'body': 'Order not found', 'isBase64Encoded': False}
 
     conn.commit()
     cur.close()
@@ -98,4 +98,4 @@ def handler(event: dict, context) -> dict:
     # TODO: Отправить уведомление (email, telegram) после успешной оплаты
     # order_id, order_number, user_email = result
 
-    return {'statusCode': 200, 'headers': HEADERS, 'body': f'OK{inv_id}'}
+    return {'statusCode': 200, 'headers': HEADERS, 'body': f'OK{inv_id}', 'isBase64Encoded': False}

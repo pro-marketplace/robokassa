@@ -76,7 +76,6 @@ export function useRobokassa(options: UseRobokassaOptions): UseRobokassaReturn {
           headers: {
             "Content-Type": "application/json",
           },
-          credentials: "include",
           body: JSON.stringify({
             amount: payload.amount,
             user_name: payload.userName,
